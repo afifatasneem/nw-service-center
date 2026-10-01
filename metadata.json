@@ -1,0 +1,6 @@
+{
+  "name": "NW Service Center",
+  "description": "National Welding Machine Service Center, Solapur - Private Business Management System for machine repairs, quotations, spare inventory, payments, and dispatch.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

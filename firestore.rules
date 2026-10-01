@@ -1,0 +1,114 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Users collection: Private staff / owner accounts
+    match /users/{userId} {
+      allow read: if isValidId(userId);
+      allow create: if isValidId(userId)
+        && request.resource.data.userId is string
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() <= 100
+        && request.resource.data.role in ['Owner', 'Staff', 'Technician']
+        && request.resource.data.status in ['active', 'disabled'];
+      allow update: if isValidId(userId)
+        && request.resource.data.role in ['Owner', 'Staff', 'Technician']
+        && request.resource.data.status in ['active', 'disabled'];
+      allow delete: if isValidId(userId);
+    }
+
+    // Jobs collection: Repair job cards
+    match /jobs/{jobId} {
+      allow read: if isValidId(jobId);
+      allow create: if isValidId(jobId)
+        && request.resource.data.jobNumber is string
+        && request.resource.data.jobNumber.size() <= 30
+        && request.resource.data.customerName is string
+        && request.resource.data.customerName.size() <= 120
+        && request.resource.data.status in ['Received', 'Under Repair', 'Waiting for Parts', 'Waiting for Customer Approval', 'Repaired', 'Ready for Collection', 'Dispatched'];
+      allow update: if isValidId(jobId)
+        && request.resource.data.status in ['Received', 'Under Repair', 'Waiting for Parts', 'Waiting for Customer Approval', 'Repaired', 'Ready for Collection', 'Dispatched'];
+      allow delete: if isValidId(jobId);
+    }
+
+    // Customer machines collection
+    match /customer_machines/{machineId} {
+      allow read: if isValidId(machineId);
+      allow create, update: if isValidId(machineId)
+        && request.resource.data.customerName is string
+        && request.resource.data.customerPhone is string
+        && request.resource.data.machineBrand is string;
+      allow delete: if isValidId(machineId);
+    }
+
+    // Spare items inventory
+    match /spare_items/{itemId} {
+      allow read: if isValidId(itemId);
+      allow create: if isValidId(itemId)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.currentStock is number
+        && request.resource.data.currentStock >= 0;
+      allow update: if isValidId(itemId)
+        && request.resource.data.currentStock is number
+        && request.resource.data.currentStock >= 0;
+      allow delete: if isValidId(itemId);
+    }
+
+    // Spare transactions log
+    match /spare_transactions/{txId} {
+      allow read: if isValidId(txId);
+      allow create: if isValidId(txId)
+        && request.resource.data.itemId is string
+        && request.resource.data.type in ['IN', 'OUT']
+        && request.resource.data.quantity is number
+        && request.resource.data.quantity > 0;
+      allow update, delete: if false; // Transaction logs are immutable
+    }
+
+    // Technicians
+    match /technicians/{techId} {
+      allow read: if isValidId(techId);
+      allow create, update: if isValidId(techId)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 120
+        && request.resource.data.status in ['active', 'inactive'];
+      allow delete: if isValidId(techId);
+    }
+
+    // Machine brands
+    match /machine_brands/{brandId} {
+      allow read: if isValidId(brandId);
+      allow create, update: if isValidId(brandId)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 80
+        && request.resource.data.status in ['active', 'disabled'];
+      allow delete: if isValidId(brandId);
+    }
+
+    // Monthly closings
+    match /monthly_closings/{closingId} {
+      allow read: if isValidId(closingId);
+      allow create: if isValidId(closingId)
+        && request.resource.data.monthPeriod is string
+        && request.resource.data.closedBy is string;
+      allow update, delete: if false; // Monthly closings are immutable audit logs
+    }
+
+    // Business settings
+    match /settings/{settingId} {
+      allow read: if isValidId(settingId);
+      allow create, update: if isValidId(settingId);
+      allow delete: if false;
+    }
+  }
+}
